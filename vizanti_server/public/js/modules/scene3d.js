@@ -65,9 +65,14 @@ function setupControls(camera, domElement) {
 	const controls = new OrbitControls(camera, domElement);
 	controls.enableDamping = true;
 	controls.dampingFactor = 0.1;
-	controls.enableRotate = false;
 	controls.screenSpacePanning = true;
 	controls.target.set(0, 0, 0);
+	controls.enableRotate = true;
+	controls.mouseButtons = {
+		LEFT: THREE.MOUSE.ROTATE,
+		MIDDLE: THREE.MOUSE.DOLLY,
+		RIGHT: THREE.MOUSE.PAN
+	};
 	controls.update();
 	return controls;
 }
@@ -150,8 +155,8 @@ function attachEventHandlers() {
 	};
 
 	sharedContext.generalEvents.forEach((eventName) => {
-		const passive = eventName === 'wheel' || eventName.startsWith('touch') ? false : true;
-		const options = eventName === 'wheel' || eventName.startsWith('touch') ? { passive } : passive;
+		const passive = !(eventName === 'wheel' || eventName.startsWith('touch'));
+		const options = { passive, capture: false };
 		sharedContext.renderer.domElement.addEventListener(eventName, sharedContext.generalHandler, options);
 	});
 

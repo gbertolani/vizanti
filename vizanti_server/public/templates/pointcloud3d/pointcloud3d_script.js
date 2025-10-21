@@ -481,14 +481,35 @@ function handleMessage(msg) {
 		rawPoints[writeIndex++] = z;
 
 		if (localColors) {
-			if (colorExtractor.type === 'rgb') {
-				const field = colorExtractor.field;
-				const rawColor = dataView.getUint32(offset + field.offset, littleEndian);
-                const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba', littleEndian);
-				// const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba');
-				localColors[colorIndex++] = r;
-				localColors[colorIndex++] = g;
-				localColors[colorIndex++] = b;
+            if (colorExtractor.type === 'rgb') {
+              const field = colorExtractor.field;
+
+              // Leemos los 4 bytes crudos del campo rgb/rgba
+              const b0 = dataView.getUint8(offset + field.offset + 0);
+              const b1 = dataView.getUint8(offset + field.offset + 1);
+              const b2 = dataView.getUint8(offset + field.offset + 2);
+              const b3 = dataView.getUint8(offset + field.offset + 3); // alpha si existe
+
+              let r, g, b;
+              if (msg.is_bigendian) {
+                // big-endian (menos común): [R, G, B, A]
+                r = b0; g = b1; b = b2;
+              } else {
+                // little-endian (típico en ROS/x86): [B, G, R, A]
+                b = b0; g = b1; r = b2;
+              }
+
+              localColors[colorIndex++] = r / 255;
+              localColors[colorIndex++] = g / 255;
+              localColors[colorIndex++] = b / 255;
+			// if (colorExtractor.type === 'rgb') {
+			// 	const field = colorExtractor.field;
+			// 	const rawColor = dataView.getUint32(offset + field.offset, littleEndian);
+            //     const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba', littleEndian);
+			// 	// const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba');
+			// 	localColors[colorIndex++] = r;
+			// 	localColors[colorIndex++] = g;
+			// 	localColors[colorIndex++] = b;
 			} else if (colorExtractor.type === 'components') {
 				const components = colorExtractor.fields;
 				const r = normalizeColorComponent(readFieldValue(dataView, offset, components.r, littleEndian), components.r);

@@ -4,13 +4,12 @@ let persistentModule = await import(`${base_url}/js/modules/persistent.js`);
 let StatusModule = await import(`${base_url}/js/modules/status.js`);
 let utilModule = await import(`${base_url}/js/modules/util.js`);
 const THREE = await import('three');
-const ControlsModule = await import(`${base_url}/js/lib/OrbitControls.js`);
+const scene3dModule = await import(`${base_url}/js/modules/scene3d.js`);
 
 const { applyRotation, tf } = tfModule;
 const { rosbridge } = rosbridgeModule;
 const settings = persistentModule.settings;
 const Status = StatusModule.Status;
-const { OrbitControls } = ControlsModule;
 
 let topic = getTopic("{uniqueID}");
 let status = new Status(
@@ -28,74 +27,13 @@ const colourPicker = document.getElementById('{uniqueID}_colorpicker');
 const maxPointsInput = document.getElementById('{uniqueID}_max_points');
 const throttleInput = document.getElementById('{uniqueID}_throttle');
 
-const container = document.getElementById('{uniqueID}_container');
-container.classList.add('pointcloud3d-root');
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.domElement.id = '{uniqueID}_canvas';
-container.appendChild(renderer.domElement);
-
-['pointerdown', 'pointermove', 'pointerup', 'wheel', 'touchstart', 'touchmove', 'touchend'].forEach((eventName) => {
-	const passive = eventName === 'wheel' || eventName.startsWith('touch') ? false : true;
-	renderer.domElement.addEventListener(eventName, (event) => {
-		event.stopPropagation();
-		if (eventName === 'wheel') {
-			event.preventDefault();
-		}
-	}, { passive });
-});
-
-renderer.domElement.addEventListener('pointerdown', (event) => {
-	if (!isPrimaryPointer(event)) {
-		return;
-	}
-	event.preventDefault();
-	startManualRotation(event);
-});
-
-renderer.domElement.addEventListener('pointermove', (event) => {
-	applyManualRotation(event);
-});
-
-['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => {
-	renderer.domElement.addEventListener(eventName, (event) => {
-		stopManualRotation(event);
-	});
-});
-
-renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
-
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(10, 10, 10);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.1;
-// controls.enableRotate = false;
-controls.screenSpacePanning = true;
 
 
-controls.enableRotate = true; // <— ACTIVAR rotación
-controls.mouseButtons = {
-  LEFT: THREE.MOUSE.ROTATE,   // arrastre izquierdo = orbitar (yaw/pitch)
-  MIDDLE: THREE.MOUSE.DOLLY,  // rueda/botón medio = zoom
-  RIGHT: THREE.MOUSE.PAN      // arrastre derecho = pan
-};
+const sceneHandle = await scene3dModule.acquireScene('{uniqueID}');
+const { camera, controls, addLayer } = sceneHandle;
 
-
-controls.target.set(0, 0, 0);
-controls.update();
-
-const worldGroup = new THREE.Group();
-scene.add(worldGroup);
-
-worldGroup.add(new THREE.GridHelper(20, 20, 0x444444, 0x222222));
-worldGroup.add(new THREE.AxesHelper(1));
+const pointLayer = addLayer('{uniqueID}_pointcloud');
+pointLayer.rotation.x = -Math.PI / 2; // align cloud upright relative to camera
 
 const pointMaterial = new THREE.PointsMaterial({
 	size: parseFloat(pointSizeSlider.value),
@@ -109,69 +47,7 @@ const pointMaterial = new THREE.PointsMaterial({
 const pointGeometry = new THREE.BufferGeometry();
 pointGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(), 3));
 const pointMesh = new THREE.Points(pointGeometry, pointMaterial);
-const pointGroup = new THREE.Group();
-pointGroup.rotation.x = -Math.PI / 2; // align cloud upright relative to camera
-pointGroup.add(pointMesh);
-worldGroup.add(pointGroup);
-
-const rotationState = {
-	active: false,
-	pointerId: null,
-	lastX: 0,
-	lastY: 0
-};
-const rotationSpeed = 0.005;
-
-function isPrimaryPointer(event) {
-	if (event.pointerType === 'mouse') {
-		return event.button === 0;
-	}
-	return event.isPrimary !== false;
-}
-
-function startManualRotation(event) {
-	if (!isPrimaryPointer(event) || rotationState.active) {
-		return;
-	}
-	rotationState.active = true;
-	rotationState.pointerId = event.pointerId;
-	rotationState.lastX = event.clientX;
-	rotationState.lastY = event.clientY;
-	try {
-		renderer.domElement.setPointerCapture(event.pointerId);
-	} catch (error) {
-		console.debug('Pointer capture unavailable', error);
-	}
-}
-
-function applyManualRotation(event) {
-	if (!rotationState.active || event.pointerId !== rotationState.pointerId) {
-		return;
-	}
-	const deltaX = event.clientX - rotationState.lastX;
-	const deltaY = event.clientY - rotationState.lastY;
-	rotationState.lastX = event.clientX;
-	rotationState.lastY = event.clientY;
-
-	worldGroup.rotation.z -= deltaX * rotationSpeed;
-	worldGroup.rotation.x += deltaY * rotationSpeed;
-	const maxTilt = Math.PI / 3;
-	worldGroup.rotation.x = Math.max(-maxTilt, Math.min(maxTilt, worldGroup.rotation.x));
-}
-
-function stopManualRotation(event) {
-	if (!rotationState.active || event.pointerId !== rotationState.pointerId) {
-		return;
-	}
-	rotationState.active = false;
-	rotationState.pointerId = null;
-	try {
-		renderer.domElement.releasePointerCapture(event.pointerId);
-	} catch (error) {
-		console.debug('Pointer release unavailable', error);
-	}
-}
-
+pointLayer.add(pointMesh);
 let rosTopic = undefined;
 let listener = undefined;
 let rawPoints = new Float32Array();
@@ -184,32 +60,6 @@ const qosProfile = {
 	history: 'keep_last',
 	depth: 10
 };
-
-const resizeObserver = () => {
-	const width = window.innerWidth;
-	const height = window.innerHeight;
-	renderer.setSize(width, height);
-	camera.aspect = width / height;
-	camera.updateProjectionMatrix();
-};
-
-let animationActive = true;
-
-const animate = () => {
-	if (!animationActive) {
-		return;
-	}
-
-	if (!document.body.contains(container)) {
-		animationActive = false;
-		return;
-	}
-
-	requestAnimationFrame(animate);
-	controls.update();
-	renderer.render(scene, camera);
-};
-requestAnimationFrame(animate);
 
 function saveSettings() {
 	settings["{uniqueID}"] = {
@@ -387,31 +237,6 @@ function updateGeometry() {
 	}
 }
 
-function decodeRGBValue(packed, hasAlpha, littleEndian) {
-  let r, g, b, a = 1;
-  if (littleEndian) {
-    // orden típico en ROS: [r, g, b, a] en little-endian
-    r =  (packed       ) & 0xFF;
-    g =  (packed >>> 8 ) & 0xFF;
-    b =  (packed >>> 16) & 0xFF;
-    if (hasAlpha) a = ((packed >>> 24) & 0xFF) / 255;
-  } else {
-    // big-endian (menos común)
-    if (hasAlpha) {
-      r = (packed >>> 24) & 0xFF;
-      g = (packed >>> 16) & 0xFF;
-      b = (packed >>> 8 ) & 0xFF;
-      a =  (packed        & 0xFF) / 255;
-    } else {
-      r = (packed >>> 16) & 0xFF;
-      g = (packed >>> 8 ) & 0xFF;
-      b =  packed        & 0xFF;
-    }
-  }
-  return { r: r/255, g: g/255, b: b/255, a };
-}
-
-
 function handleMessage(msg) {
 	let frameId = msg.header.frame_id || '';
 	if (frameId === '') {
@@ -481,35 +306,28 @@ function handleMessage(msg) {
 		rawPoints[writeIndex++] = z;
 
 		if (localColors) {
-            if (colorExtractor.type === 'rgb') {
-              const field = colorExtractor.field;
+			if (colorExtractor.type === 'rgb') {
+				const field = colorExtractor.field;
+				const b0 = dataView.getUint8(offset + field.offset + 0);
+				const b1 = dataView.getUint8(offset + field.offset + 1);
+				const b2 = dataView.getUint8(offset + field.offset + 2);
 
-              // Leemos los 4 bytes crudos del campo rgb/rgba
-              const b0 = dataView.getUint8(offset + field.offset + 0);
-              const b1 = dataView.getUint8(offset + field.offset + 1);
-              const b2 = dataView.getUint8(offset + field.offset + 2);
-              const b3 = dataView.getUint8(offset + field.offset + 3); // alpha si existe
+				let r;
+				let g;
+				let b;
+				if (msg.is_bigendian) {
+					r = b0;
+					g = b1;
+					b = b2;
+				} else {
+					b = b0;
+					g = b1;
+					r = b2;
+				}
 
-              let r, g, b;
-              if (msg.is_bigendian) {
-                // big-endian (menos común): [R, G, B, A]
-                r = b0; g = b1; b = b2;
-              } else {
-                // little-endian (típico en ROS/x86): [B, G, R, A]
-                b = b0; g = b1; r = b2;
-              }
-
-              localColors[colorIndex++] = r / 255;
-              localColors[colorIndex++] = g / 255;
-              localColors[colorIndex++] = b / 255;
-			// if (colorExtractor.type === 'rgb') {
-			// 	const field = colorExtractor.field;
-			// 	const rawColor = dataView.getUint32(offset + field.offset, littleEndian);
-            //     const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba', littleEndian);
-			// 	// const { r, g, b } = decodeRGBValue(rawColor, field.name === 'rgba');
-			// 	localColors[colorIndex++] = r;
-			// 	localColors[colorIndex++] = g;
-			// 	localColors[colorIndex++] = b;
+				localColors[colorIndex++] = r / 255;
+				localColors[colorIndex++] = g / 255;
+				localColors[colorIndex++] = b / 255;
 			} else if (colorExtractor.type === 'components') {
 				const components = colorExtractor.fields;
 				const r = normalizeColorComponent(readFieldValue(dataView, offset, components.r, littleEndian), components.r);
@@ -627,22 +445,26 @@ throttleInput.addEventListener('change', () => {
 	connect();
 });
 
-window.addEventListener('resize', resizeObserver);
-window.addEventListener('orientationchange', resizeObserver);
 window.addEventListener('tf_fixed_frame_changed', updateGeometry);
-window.addEventListener('remove_widget', (event) => {
+const removeHandler = (event) => {
 	if (event.uniqueID === '{uniqueID}') {
-		animationActive = false;
 		if (rosTopic && listener) {
 			rosTopic.unsubscribe(listener);
 			listener = undefined;
 		}
-		renderer.dispose();
 		pointGeometry.dispose();
 		pointMaterial.dispose();
+		try {
+			sceneHandle.removeLayer(pointLayer);
+		} catch (error) {
+			console.debug('Pointcloud layer removal failed', error);
+		}
+		scene3dModule.releaseScene('{uniqueID}');
 		viewHasFitted = false;
+		window.removeEventListener('remove_widget', removeHandler);
 	}
-});
+};
+window.addEventListener('remove_widget', removeHandler);
 
 if (settings.hasOwnProperty("{uniqueID}")) {
 	const stored = settings["{uniqueID}"];
@@ -666,6 +488,5 @@ if (iconObject?.contentDocument) {
 }
 
 loadTopics();
-resizeObserver();
 
 console.log('Point Cloud 3D Widget Loaded {uniqueID}');

@@ -610,6 +610,21 @@ canvas {
 	z-index: 0;
 }
 
+.pointcloud3d-root {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 0;
+}
+
+.pointcloud3d-root canvas {
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
 .compressedimage {
 	width: 25%;
 	height: 25%;

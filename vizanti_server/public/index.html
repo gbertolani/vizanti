@@ -19,6 +19,14 @@
 		const base_url = "{{ base_url }}";
 	</script>
 
+	<script type="importmap">
+	{
+		"imports": {
+			"three": "{{ url_for('serve_static', path='js/lib/three.module.js') }}"
+		}
+	}
+	</script>
+
 	<div id="script_container">
 
 	</div>

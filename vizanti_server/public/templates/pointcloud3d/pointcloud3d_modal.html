@@ -1,0 +1,41 @@
+<div id="{uniqueID}_modal" class="modal_outer noselect">
+	<div class="modal_inner noselect">
+		<h3>Point Cloud 3D</h3>
+		<p id="{uniqueID}_status" class="status">Status: Ok.</p>
+		<hr class="dark_hr"/>
+
+		<label for="{uniqueID}_topic">Topic:</label>
+		<select id="{uniqueID}_topic" name="topic"></select>
+
+		<div class="spacer"></div>
+
+		<label for="{uniqueID}_point_size">Point size (px):</label>
+		<span id="{uniqueID}_point_size_value">2.0</span>
+		<input type="range" value="2.0" step="0.5" min="0.5" max="10" id="{uniqueID}_point_size">
+
+		<div class="spacer"></div>
+
+		<label for="{uniqueID}_colorpicker">Colour:</label>
+		<input type="color" value="#1f8eec" id="{uniqueID}_colorpicker">
+
+		<div class="spacer"></div>
+
+		<label for="{uniqueID}_max_points">Max points:</label>
+		<input type="number" value="200000" step="1000" min="1000" max="1000000" id="{uniqueID}_max_points">
+
+		<div class="spacer"></div>
+
+		<label for="{uniqueID}_throttle">Socket throttle (ms):</label>
+		<input type="number" value="200" step="0" min="0" max="10000" id="{uniqueID}_throttle">
+
+		<div class="spacer"></div>
+
+		<p>Point clouds can be heavy. Use the throttle and max points limits to balance fidelity and performance.</p>
+
+		<hr class="dark_hr"/>
+
+		<div class="spacer"></div>
+
+		<button id="{uniqueID}_remove" class="delete_button" onclick="removeWidget('{uniqueID}')">Remove Widget</button>
+	</div>
+</div>

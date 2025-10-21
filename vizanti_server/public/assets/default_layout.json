@@ -15,6 +15,10 @@
     {
       "type": "tf",
       "id": "tf_default"
+    },
+    {
+      "type": "pointcloud3d",
+      "id": "pointcloud3d_default"
     }
   ],
   "view": {

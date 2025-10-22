@@ -183,7 +183,7 @@ function updateGeometry() {
 		pointGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(), 3));
 		pointGeometry.deleteAttribute('color');
 		pointMaterial.vertexColors = false;
-		delete pointGeometry.boundingSphere;
+		pointGeometry.boundingSphere = null;
 		return;
 	}
 

@@ -160,25 +160,25 @@ function attachEventHandlers() {
 		sharedContext.renderer.domElement.addEventListener(eventName, sharedContext.generalHandler, options);
 	});
 
-	sharedContext.pointerDownHandler = (event) => {
-		if (!isPrimaryPointer(event)) {
-			return;
-		}
-		event.preventDefault();
-		startManualRotation(event);
-	};
-	sharedContext.pointerMoveHandler = (event) => {
-		applyManualRotation(event);
-	};
-	sharedContext.pointerUpHandler = (event) => {
-		stopManualRotation(event);
-	};
-
-	sharedContext.renderer.domElement.addEventListener('pointerdown', sharedContext.pointerDownHandler);
-	sharedContext.renderer.domElement.addEventListener('pointermove', sharedContext.pointerMoveHandler);
-	['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => {
-		sharedContext.renderer.domElement.addEventListener(eventName, sharedContext.pointerUpHandler);
-	});
+	// sharedContext.pointerDownHandler = (event) => {
+	// 	if (!isPrimaryPointer(event)) {
+	// 		return;
+	// 	}
+	// 	event.preventDefault();
+	// 	startManualRotation(event);
+	// };
+	// sharedContext.pointerMoveHandler = (event) => {
+	// 	applyManualRotation(event);
+	// };
+	// sharedContext.pointerUpHandler = (event) => {
+	// 	stopManualRotation(event);
+	// };
+    //
+	// sharedContext.renderer.domElement.addEventListener('pointerdown', sharedContext.pointerDownHandler);
+	// sharedContext.renderer.domElement.addEventListener('pointermove', sharedContext.pointerMoveHandler);
+	// ['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => {
+		// sharedContext.renderer.domElement.addEventListener(eventName, sharedContext.pointerUpHandler);
+	// });
 
 	sharedContext.renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
 
